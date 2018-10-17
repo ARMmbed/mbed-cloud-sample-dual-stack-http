@@ -35,6 +35,12 @@ Serial pc(USBTX,USBRX);
 #include "mbedCloudClientPlugin.h"
 
 // ************************************************************************
+// Stack A: Externalizes Resource-based controls... forward referenced
+// ************************************************************************
+extern "C" char *getData();	// could be used to set auth data in StackB
+extern "C" bool  appStackOn();  // used to turn on/off the StackB
+
+// ************************************************************************
 // Stack B: HTTP Exerciser 
 // ************************************************************************
 #include "https_request.h"
@@ -47,28 +53,41 @@ void ping_http() {
     
     // make sure we have a valid network interface (setup by Stack A...) 
     if (__network_interface != NULL) {
-        // we do... so lets send a HTTPS POST to a reflector...
-        const char body[] = "{\"hello\":\"world\"}";
+	if (appStackOn() == true && getData() != NULL) {
+            // we do... so lets send a HTTPS POST to a reflector...
+            const char *body = getData();
+
+	    // DEBUG
+	    printf("HTTPS: Making call to https://httpbin.org with data: %s\r\n",body);
         
-        // create the HTTPS POST... 
-        HttpsRequest* request = new HttpsRequest(__network_interface, SSL_CA_PEM, HTTP_POST, (const char *)"http://httpbin.org/post");
-        HttpResponse* response = request->send();
-        
-        // if response is NULL, check response->get_error() 
-        if (response != NULL) {
-            // we got a response... display it...
-            printf("HTTPS: status is %d - %s\r\n",response->get_status_code(),response->get_status_message().c_str());
-            printf("HTTPS: body is:\r\n%s\r\n", response->get_body_as_string().c_str());
+            // create the HTTPS POST... 
+            HttpsRequest* request = new HttpsRequest(__network_interface, SSL_CA_PEM, HTTP_POST, (const char *)"https://httpbin.org/post");
+            HttpResponse* response = request->send(body,strlen(body));
+            
+            // if response is NULL, check response->get_error() 
+            if (response != NULL) {
+                // we got a response... display it...
+                printf("HTTPS: status is %d - %s\r\n",response->get_status_code(),response->get_status_message().c_str());
+                printf("HTTPS: body is:\r\n%s\r\n", response->get_body_as_string().c_str());
+            }
+            else {
+                // no response... 
+                printf("HTTPS: response object is NULL! (check URL...)\r\n");
+            }
+         
+            if (request != NULL) { 
+                // this will delete both the request and the response...   
+                delete request;
+            }
         }
-        else {
-            // no response... 
-            printf("HTTPS: response object is NULL! (check URL...)\r\n");
-        }
-     
-        if (request != NULL) { 
-            // this will delete both the request and the response...   
-            delete request;
-        }
+        else if (appStackOn() == true) {
+	     // StackB is ON but no data has been set to send... so just ignore
+	     printf("HTTPS: stack is ON but no data has been set. Ignoring... (OK)\r\n");
+	}
+	else {
+	     // StackB has been turned OFF... 
+	     printf("HTTPS: stack is OFF. (OK)\r\n");
+	}
     }
     else {
         // network not initialized yet by Stack A...
