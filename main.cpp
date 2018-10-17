@@ -43,7 +43,8 @@ extern "C" bool  appStackOn();  // used to turn on/off the StackB
 // ************************************************************************
 // Stack B: HTTP Exerciser 
 // ************************************************************************
-#include "https_request.h"
+// #include "https_request.h"
+#include "http_request.h"
 void init_http_exerciser() {
 }
 
@@ -61,7 +62,11 @@ void ping_http() {
 	    printf("HTTPS: Making call to https://httpbin.org with data: %s\r\n",body);
         
             // create the HTTPS POST... 
-            HttpsRequest* request = new HttpsRequest(__network_interface, SSL_CA_PEM, HTTP_POST, (const char *)"https://httpbin.org/post");
+            // HttpsRequest* request = new HttpsRequest(__network_interface, SSL_CA_PEM, HTTP_POST, (const char *)"https://httpbin.org/post");
+            HttpRequest* request = new HttpRequest(__network_interface, HTTP_POST, (const char *)"http://httpbin.org/post");
+	
+	    // we will send some JSON... 
+	    request->set_header("Content-Type","application/json");
             HttpResponse* response = request->send(body,strlen(body));
             
             // if response is NULL, check response->get_error() 
